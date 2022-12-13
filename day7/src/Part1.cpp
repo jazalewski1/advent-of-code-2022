@@ -7,8 +7,7 @@ namespace
 {
 auto execute(utility::Stream& stream)
 {
-    constexpr task::UpperBound upper_bound = 100'000;
-    return task::accumulate_directory_sizes(stream, upper_bound);
+    return task::accumulate_directory_sizes(stream);
 }
 } // namespace
 

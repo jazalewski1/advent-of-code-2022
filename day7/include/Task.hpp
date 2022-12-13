@@ -15,41 +15,17 @@ namespace system
 {
 using Size = unsigned long long;
 
-enum class Destination { Root, Parent, NewDirectory };
-struct ChangeDirectory
-{
-    Destination destination;
-};
-
-struct InspectFile
-{
-    Size size;
-};
-
-using Command = std::variant<ChangeDirectory, InspectFile>;
-
-Destination parse_destination(const std::string& directory)
-{
-    constexpr auto root = "/";
-    constexpr auto parent = "..";
-    if (directory == root)
-    {
-        return Destination::Root;
-    }
-    if (directory == parent)
-    {
-        return Destination::Parent;
-    }
-    return Destination::NewDirectory;
-}
+struct GoForward {};
+struct GoBackward {};
+struct InspectFile { Size size; };
+using Command = std::variant<GoForward, GoBackward, InspectFile>;
 
 std::optional<Command> parse_command(const std::string& line)
 {
     const std::regex change_directory_regex{R"((\$ cd )(.*))"};
     if (std::smatch result; std::regex_search(line, result, change_directory_regex))
     {
-        const auto destination = parse_destination(result.str(2));
-        return Command{ChangeDirectory{destination}};
+        return result.str(2) == ".." ? Command{GoBackward{}} : Command{GoForward{}};
     }
     const std::regex file_regex{R"(^(\d+)( .*))"};
     if (std::smatch result; std::regex_search(line, result, file_regex))
@@ -60,32 +36,79 @@ std::optional<Command> parse_command(const std::string& line)
     return std::nullopt;
 }
 
-class Accumulator
+class Stack
 {
 public:
-    Accumulator(Size bound) : directory_size_bound{bound}
+    void push() { stack.push_back(std::exchange(current_dir, Size{0})); }
+
+    void pop()
     {
+        current_dir += stack.back();
+        stack.pop_back();
     }
 
+    void add_file(Size size) { current_dir += size; }
+
+    Size get_current() const { return current_dir; }
+
+private:
+    std::vector<Size> stack;
+    Size current_dir;
+};
+
+class BoundedAccumulator
+{
+public:
     void execute(const Command& command)
     {
         std::visit([this](const auto& type) { execute(type); }, command);
     }
 
-    Size get_sum_of_sizes() const { return sum_of_sizes_below_bound; }
-
-    Size find_smallest_directory_to_remove() const
+    Size get_result() const
     {
-        constexpr Size required_size = 30'000'000;
-        constexpr Size total_size = 70'000'000;
-        const Size space_left = total_size - used_size;
-        if (space_left > required_size)
+        return sum_of_sizes_below_bound;
+    }
+
+private:
+    Size sum_of_sizes_below_bound{0};
+    const Size upper_bound{100'000};
+    Stack stack;
+
+    void execute(const GoForward&)
+    {
+        stack.push();
+    }
+
+    void execute(const GoBackward&)
+    {
+        if (const auto current_size = stack.get_current(); current_size < upper_bound)
         {
-            return Size{0};
+            sum_of_sizes_below_bound += current_size;
         }
-        constexpr Size max_available_size = total_size - required_size;
-        const Size needed_to_remove = used_size - max_available_size;
-        const auto to_remove = std::ranges::upper_bound(sorted_sizes, needed_to_remove);
+        stack.pop();
+    }
+
+    void execute(const InspectFile& file)
+    {
+        stack.add_file(file.size);
+    }
+};
+
+class SortedAccumulator
+{
+public:
+    void execute(const Command& command)
+    {
+        std::visit([this](const auto& type) { execute(type); }, command);
+    }
+
+    Size get_result() const
+    {
+        constexpr Size required_space = 30'000'000;
+        constexpr Size total_space = 70'000'000;
+        constexpr Size max_available_space = total_space - required_space;
+        const Size space_to_remove = used_space - max_available_space;
+        const auto to_remove = std::ranges::upper_bound(sorted_sizes, space_to_remove);
         if (to_remove != sorted_sizes.end())
         {
             return *to_remove;
@@ -94,48 +117,33 @@ public:
     }
 
 private:
-    std::vector<Size> stack_of_sizes;
     std::set<Size> sorted_sizes;
-    Size current_dir_size{0};
-    Size used_size{0};
-    const Size directory_size_bound;
-    Size sum_of_sizes_below_bound{0};
+    Stack stack;
+    Size used_space;
 
-    void execute(const ChangeDirectory& command)
+    void execute(const GoForward&)
     {
-        if (command.destination == Destination::Root)
-        {
-            stack_of_sizes.push_back(Size{});
-        }
-        else if (command.destination == Destination::Parent)
-        {
-            sorted_sizes.insert(current_dir_size);
-            if (current_dir_size < 100'000)
-            {
-                sum_of_sizes_below_bound += current_dir_size;
-            }
-            current_dir_size += stack_of_sizes.back();
-            stack_of_sizes.pop_back();
-        }
-        else
-        {
-            stack_of_sizes.push_back(current_dir_size);
-            current_dir_size = Size{};
-        }
+        stack.push();
+    }
+
+    void execute(const GoBackward&)
+    {
+        sorted_sizes.insert(stack.get_current());
+        stack.pop();
     }
 
     void execute(const InspectFile& file)
     {
-        current_dir_size += file.size;
-        used_size += file.size;
+        used_space += file.size;
+        stack.add_file(file.size);
     }
 };
 } // namespace system
 
 using UpperBound = system::Size;
-auto accumulate_directory_sizes(utility::Stream& stream, UpperBound upper_bound)
+auto accumulate_directory_sizes(utility::Stream& stream)
 {
-    system::Accumulator accumulator{upper_bound};
+    system::BoundedAccumulator accumulator{};
     for (const auto& line : stream)
     {
         const auto command = system::parse_command(line);
@@ -144,12 +152,12 @@ auto accumulate_directory_sizes(utility::Stream& stream, UpperBound upper_bound)
             accumulator.execute(command.value());
         }
     }
-    return accumulator.get_sum_of_sizes();
+    return accumulator.get_result();
 }
 
 auto find_smallest_to_remove(utility::Stream& stream)
 {
-    system::Accumulator accumulator{UpperBound{}};
+    system::SortedAccumulator accumulator{};
     for (const auto& line : stream)
     {
         const auto command = system::parse_command(line);
@@ -158,6 +166,6 @@ auto find_smallest_to_remove(utility::Stream& stream)
             accumulator.execute(command.value());
         }
     }
-    return accumulator.find_smallest_directory_to_remove();
+    return accumulator.get_result();
 }
 } // namespace task
