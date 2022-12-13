@@ -1,0 +1,36 @@
+#! /bin/bash
+
+DAY_NAME=${1}
+if [[ -z ${DAY_NAME} ]]; then
+    echo "No base directory provided"
+    exit 1
+fi
+
+DAY_DIR=$(realpath ${DAY_NAME})
+if [[ ! -d ${DAY_DIR} ]]; then
+    echo "Directory \"${DAY_DIR}\" does not exist"
+    exit 1
+fi
+
+PART_NAME=${2}
+if [[ -z ${PART_NAME} ]]; then
+    echo "No part provided"
+    exit 1
+fi
+
+DAY_ID=$(echo ${DAY_NAME} | sed "s/day//")
+PART_ID=$(echo ${PART_NAME} | sed "s/part//")
+TARGET="d${DAY_ID}p${PART_ID}"
+
+function execute() {
+    ninja ${TARGET} && bin/${TARGET} ${DAY_DIR}/input.txt
+}
+
+CURRENT_DIR=$(basename "`pwd`")
+if [[ ! ${CURRENT_DIR} = "build" ]]; then
+    pushd build > /dev/null
+    execute
+    popd > /dev/null
+else
+    execute
+fi
