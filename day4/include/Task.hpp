@@ -37,7 +37,6 @@ bool has_redundant_range(const std::string& string)
 
 bool has_overlap(const std::string& string)
 {
-    DBG(string);
     const auto [first_range, second_range] = parse_ranges(string);
     return are_overlapping(first_range, second_range);
 }

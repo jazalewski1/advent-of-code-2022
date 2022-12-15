@@ -8,7 +8,7 @@ namespace
 {
 auto execute(utility::Stream& stream)
 {
-    return std::count_if(stream.begin(), stream.end(), task::has_redundant_range);
+    return std::ranges::count_if(stream, task::has_redundant_range);
 }
 } // namespace
 

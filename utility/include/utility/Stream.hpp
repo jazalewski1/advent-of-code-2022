@@ -11,6 +11,8 @@
 
 namespace utility
 {
+struct StreamSentinel {};
+
 class StreamIterator
 {
 public:
@@ -36,16 +38,9 @@ public:
 
     StreamIterator operator++(int) { return StreamIterator{*stream}; }
 
-    bool operator==(const StreamIterator& other) const
-    {
-        if (this->is_end_of_stream and other.is_end_of_stream)
-        {
-            return true;
-        }
-        return this->stream == other.stream;
-    }
+    friend bool operator==(const StreamSentinel&, const StreamIterator& itr) { return itr.is_end_of_stream; }
 
-    bool operator!=(const StreamIterator& other) const { return not(other == *this); }
+    friend bool operator!=(const StreamSentinel& sen, const StreamIterator& itr) { return not (sen == itr); }
 
 private:
     std::istream* stream;
@@ -75,7 +70,7 @@ public:
 
     StreamIterator begin() { return StreamIterator{stream}; }
 
-    StreamIterator end() { return StreamIterator{}; }
+    StreamSentinel end() { return StreamSentinel{}; }
 
 private:
     std::istream& stream;
