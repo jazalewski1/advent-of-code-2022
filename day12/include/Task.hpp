@@ -72,12 +72,8 @@ public:
         current_node = start_node;
     }
 
-    std::optional<Vector> explore_next()
+    Vector explore_next()
     {
-        if (queue_to_check.empty())
-        {
-            return std::nullopt;
-        }
         current_node = queue_to_check.front();
         queue_to_check.pop_front();
 
@@ -93,6 +89,8 @@ public:
         }
         return current_node.position;
     }
+
+    bool finished() const { return queue_to_check.empty(); }
 
     VectorList get_path() const
     {
@@ -163,9 +161,10 @@ auto find_shortest_path(utility::Stream& stream)
 {
     auto [map, source, target] = parse_input(stream);
     BreadthFirstSearcher<Ascend> searcher{map, source};
-    for (auto current_step = searcher.explore_next(); current_step.has_value(); current_step = searcher.explore_next())
+    while (not searcher.finished())
     {
-        if (current_step.value() == target)
+        const auto current_step = searcher.explore_next();
+        if (current_step == target)
         {
             const auto path = searcher.get_path();
             const auto steps_taken = path.size() - 1;
@@ -188,9 +187,10 @@ auto find_shortest_path_from_any_lowest(utility::Stream& stream)
     auto [map, _, source] = parse_input(stream);
     BreadthFirstSearcher<Descend> searcher{map, source};
     std::optional<std::size_t> shortest_found;
-    for (auto current_step = searcher.explore_next(); current_step.has_value(); current_step = searcher.explore_next())
+    while (not searcher.finished())
     {
-        if (map.at(current_step.value()) == 'a')
+        const auto current_step = searcher.explore_next();
+        if (map.at(current_step) == 'a')
         {
             const auto path = searcher.get_path();
             const auto steps_taken = path.size() - 1;
