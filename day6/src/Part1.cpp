@@ -9,7 +9,7 @@ auto execute(utility::Stream& stream)
 {
     const auto line = stream.next_line();
     constexpr auto marker_length = 4u;
-    return task::count_characters_to_marker_end(line.value(), marker_length);
+    return task::count_characters_to_marker_end(line, marker_length);
 }
 } // namespace
 

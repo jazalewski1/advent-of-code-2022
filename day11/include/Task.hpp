@@ -77,11 +77,11 @@ Monkey parse_monkey(utility::Stream& stream)
     Monkey monkey;
 
     stream.next_line();
-    monkey.items = parse_items(stream.next_line().value());
-    monkey.operation = parse_operation(stream.next_line().value());
-    monkey.modulus = parse_test(stream.next_line().value());
-    monkey.true_recipient = parse_recipient(stream.next_line().value());
-    monkey.false_recipient = parse_recipient(stream.next_line().value());
+    monkey.items = parse_items(stream.next_line());
+    monkey.operation = parse_operation(stream.next_line());
+    monkey.modulus = parse_test(stream.next_line());
+    monkey.true_recipient = parse_recipient(stream.next_line());
+    monkey.false_recipient = parse_recipient(stream.next_line());
 
     return monkey;
 }

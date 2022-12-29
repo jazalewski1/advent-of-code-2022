@@ -13,7 +13,7 @@ auto execute(utility::Stream& stream)
         const auto line1 = stream.next_line();
         const auto line2 = stream.next_line();
         const auto line3 = stream.next_line();
-        const auto common_letter = task::get_common_letter(*line1, *line2, *line3);
+        const auto common_letter = task::get_common_letter(line1, line2, line3);
         result += task::convert_to_priority(common_letter);
     }
     return result;

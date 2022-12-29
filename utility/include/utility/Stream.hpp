@@ -4,7 +4,6 @@
 #include <exception>
 #include <fstream>
 #include <iomanip>
-#include <optional>
 #include <string>
 #include <iterator>
 #include <istream>
@@ -66,7 +65,7 @@ public:
 
     bool is_active() const { return not stream.eof(); }
 
-    std::optional<std::string> next_line() { return *StreamIterator{stream}; }
+    std::string next_line() { return *StreamIterator{stream}; }
 
     StreamIterator begin() { return StreamIterator{stream}; }
 
