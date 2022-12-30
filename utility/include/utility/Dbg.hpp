@@ -83,7 +83,8 @@ static void print(std::ostream& stream, const Container& container)
     if (not container.empty())
     {
         const auto first_element_iter = container.begin();
-        const auto last_element_iter = std::prev(container.end());
+        const auto size = container.size();
+        const auto last_element_iter = std::next(first_element_iter, size - 1);
         std::for_each(first_element_iter, last_element_iter, [&stream](const auto& e) {
             print(stream, e);
             stream << ", ";
