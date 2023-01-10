@@ -1,7 +1,8 @@
 #pragma once
 
 #include "utility/Stream.hpp"
-#include <ranges>
+#include <algorithm>
+#include <optional>
 #include <regex>
 #include <unordered_set>
 #include <vector>
@@ -10,6 +11,7 @@ namespace task
 {
 struct Vector { int x{0}, y{0}; };
 bool operator==(const Vector& lhs, const Vector& rhs) { return lhs.x == rhs.x and lhs.y == rhs.y; }
+
 struct VectorHash
 {
     std::size_t operator()(const Vector& v) const { return std::hash<int>{}(v.x) ^ (std::hash<int>{}(v.y) << 1); }
@@ -21,8 +23,8 @@ void add_positions_from_path(VectorSet& target, const Vector& begin, const Vecto
 {
     if (begin.x != end.x)
     {
-        const auto first = begin.x < end.x ? begin.x : end.x;
-        const auto last = begin.x < end.x ? end.x : begin.x;
+        const auto first = std::min(begin.x, end.x);
+        const auto last = std::max(begin.x, end.x);
         for (auto x = first; x <= last; ++x)
         {
             target.emplace(x, begin.y);
@@ -30,8 +32,8 @@ void add_positions_from_path(VectorSet& target, const Vector& begin, const Vecto
     }
     else
     {
-        const auto first = begin.y < end.y ? begin.y : end.y;
-        const auto last = begin.y < end.y ? end.y : begin.y;
+        const auto first = std::min(begin.y, end.y);
+        const auto last = std::max(begin.y, end.y);
         for (auto y = first; y <= last; ++y)
         {
             target.emplace(begin.x, y);
@@ -64,7 +66,7 @@ auto find_lowest_height(const VectorSet& vectors)
     return std::ranges::max_element(vectors, [](const auto& lhs, const auto& rhs) { return lhs.y < rhs.y; })->y;
 }
 
-std::optional<Vector> get_next_position(const Vector& source, const VectorSet& elements)
+std::optional<Vector> find_next_position(const Vector& source, const VectorSet& elements)
 {
     if (const Vector below{source.x, source.y + 1}; not elements.contains(below))
     {
@@ -81,35 +83,34 @@ std::optional<Vector> get_next_position(const Vector& source, const VectorSet& e
     return std::nullopt;
 }
 
-Vector simulate_element(const Vector& start, const VectorSet& stable_elements, int stopping_height)
-{
-    auto current = start;
-    for (auto next = get_next_position(current, stable_elements); next.has_value(); next = get_next_position(current, stable_elements))
-    {
-        if (next.value().y == stopping_height)
-        {
-            break;
-        }
-        current = next.value();
-    }
-    return current;
-}
-
 auto count_stable_units_to_abyss(utility::Stream& stream)
 {
     auto stable_elements = parse_input(stream);
     const auto lowest_height = find_lowest_height(stable_elements);
-    const auto below_lowest_height = lowest_height + 1;
     const Vector start{500, 0};
 
     auto element_counter = 0;
-    auto new_element = simulate_element(start, stable_elements, below_lowest_height);
-    while (new_element.y != lowest_height)
+    std::vector<Vector> unstable_stack{start};
+    while (not unstable_stack.empty())
     {
-        stable_elements.insert(new_element);
-        ++element_counter;
-        new_element = simulate_element(start, stable_elements, below_lowest_height);
+        const auto current = unstable_stack.back();
+        const auto next = find_next_position(current, stable_elements);
+        if (next.has_value())
+        {
+            unstable_stack.push_back(next.value());
+        }
+        else
+        {
+            unstable_stack.pop_back();
+            stable_elements.insert(current);
+            ++element_counter;
+        }
+        if (current.y == lowest_height)
+        {
+            break;
+        }
     }
+
     return element_counter;
 }
 
@@ -120,14 +121,22 @@ auto count_stable_units_to_start(utility::Stream& stream)
     const auto ground_height = lowest_height + 2;
     const Vector start{500, 0};
 
-    auto new_element = simulate_element(start, stable_elements, ground_height);
-    stable_elements.insert(new_element);
-    auto element_counter = 1;
-    while (new_element != start)
+    auto element_counter = 0;
+    std::vector<Vector> unstable_stack{start};
+    while (not unstable_stack.empty())
     {
-        new_element = simulate_element(start, stable_elements, ground_height);
-        stable_elements.insert(new_element);
-        ++element_counter;
+        const auto current = unstable_stack.back();
+        const auto next = find_next_position(current, stable_elements);
+        if (next.has_value() and current.y + 1 != ground_height)
+        {
+            unstable_stack.push_back(next.value());
+        }
+        else
+        {
+            unstable_stack.pop_back();
+            stable_elements.insert(current);
+            ++element_counter;
+        }
     }
     return element_counter;
 }
