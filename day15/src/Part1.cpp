@@ -8,7 +8,7 @@ namespace
 auto execute(utility::Stream& stream)
 {
     constexpr auto row = 2'000'000;
-    return task::count_positions(stream, row);
+    return task::count_empty_positions(stream, row);
 }
 } // namespace
 

@@ -1,9 +1,11 @@
 #pragma once
 
 #include "utility/Stream.hpp"
+#include <optional>
 #include <regex>
-#include <unordered_set>
+#include <set>
 #include <vector>
+#include <ranges>
 
 namespace task
 {
@@ -38,36 +40,96 @@ auto distance(const Vector& lhs, const Vector& rhs)
     return dist_x + dist_y;
 }
 
-auto find_empty_xs(const Sensors& sensors, int row)
+using Range = std::pair<int, int>;
+struct RangeComparator
 {
-    std::unordered_set<int> empty_xs;
-    for (const auto& sensor : sensors)
+    bool operator()(const Range& lhs, const Range& rhs) const { return lhs.first < rhs.first; }
+};
+using Ranges = std::set<Range, RangeComparator>;
+
+std::optional<Range> get_range(const Sensor& sensor, int row)
+{
+    const auto y_distance_to_row = std::abs(sensor.position.y - row);
+    const auto radius = distance(sensor.position, sensor.beacon_position);
+    if (y_distance_to_row > radius)
     {
-        const auto y_distance_to_row = std::abs(sensor.position.y - row);
-        const auto radius = distance(sensor.position, sensor.beacon_position);
-        if (y_distance_to_row > radius)
-        {
-            continue;
-        }
-        const auto half_x_distance_at_row = radius - y_distance_to_row;
-        const auto x_start = sensor.position.x - half_x_distance_at_row;
-        const auto x_end = sensor.position.x + half_x_distance_at_row;
-        for (auto x = x_start; x <= x_end; ++x)
-        {
-            if (x == sensor.beacon_position.x and row == sensor.beacon_position.y)
-            {
-                continue;
-            }
-            empty_xs.insert(x);
-        }
+        return std::nullopt;
     }
-    return empty_xs;
+    const auto x_half_distance_at_row = radius - y_distance_to_row;
+    auto x_start = sensor.position.x - x_half_distance_at_row;
+    auto x_end = sensor.position.x + x_half_distance_at_row;
+    if (x_start == x_end and sensor.beacon_position.x == x_start and sensor.beacon_position.y == row)
+    {
+        return std::nullopt;
+    }
+    if (x_start == sensor.beacon_position.x)
+    {
+        x_start += 1;
+    }
+    if (x_end == sensor.beacon_position.x)
+    {
+        x_end -= 1;
+    }
+    return Range{x_start, x_end};
 }
 
-auto count_positions(utility::Stream& stream, int scanned_row)
+bool are_overlapping(const Range& r1, const Range& r2)
+{
+    return (r1.first < r2.first) ? r1.second >= r2.first : r2.second >= r1.first;
+}
+
+void add_range(Ranges& ranges, const Range& new_range)
+{
+    const auto overlaps_with_new = [&new_range](const Range& r) { return are_overlapping(new_range, r); };
+    const auto first_overlapping = std::find_if(ranges.begin(), ranges.end(), overlaps_with_new);
+    if (first_overlapping != ranges.end())
+    {
+        const auto first_not_overlapping = std::find_if_not(first_overlapping, ranges.end(), overlaps_with_new);
+        const auto last_overlapping = std::prev(first_not_overlapping);
+        const auto first_to_insert = std::min(new_range.first, first_overlapping->first);
+        const auto second_to_insert = std::max(new_range.second, last_overlapping->second);
+        ranges.erase(first_overlapping, first_not_overlapping);
+        ranges.emplace(first_to_insert, second_to_insert);
+    }
+    else
+    {
+        ranges.insert(new_range);
+    }
+}
+
+auto find_empty_x_ranges(const Sensors& sensors, int row)
+{
+    Ranges empty_ranges;
+    for (const auto& sensor : sensors)
+    {
+        const auto range = get_range(sensor, row);
+        if (range.has_value())
+        {
+            add_range(empty_ranges, *range);
+        }
+    }
+    return empty_ranges;
+}
+
+auto count_elements_in_range(const Range& range)
+{
+    return (range.second - range.first) + 1;
+}
+
+auto count_elements_in_ranges(const Ranges& ranges)
+{
+    auto sum = 0;
+    for (const auto& range : ranges)
+    {
+        sum += count_elements_in_range(range);
+    }
+    return sum;
+}
+
+auto count_empty_positions(utility::Stream& stream, int scanned_row)
 {
     auto sensors = parse_input(stream);
-    const auto empty_xs = find_empty_xs(sensors, scanned_row);
-    return empty_xs.size();
+    const auto empty_ranges = find_empty_x_ranges(sensors, scanned_row);
+    return count_elements_in_ranges(empty_ranges);
 }
 } // namespace task
