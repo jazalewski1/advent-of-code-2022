@@ -21,7 +21,7 @@ TEST(GetRangeTest, Sensor_area_touches_searched_row_with_last_row)
     constexpr auto searched_row = 10;
     const auto result = get_range(sensor, searched_row);
     ASSERT_TRUE(result.has_value());
-    const Range expected{5, 5};
+    const Range expected{5, 6};
     EXPECT_EQ(result.value(), expected);
 }
 
@@ -33,7 +33,7 @@ TEST(GetRangeTest, Sensor_area_covers_range_in_searched_row)
     constexpr auto searched_row = 10;
     const auto result = get_range(sensor, searched_row);
     ASSERT_TRUE(result.has_value());
-    const Range expected{7, 11};
+    const Range expected{7, 12};
     EXPECT_EQ(result.value(), expected);
 }
 
@@ -45,7 +45,7 @@ TEST(GetRangeTest, Sensor_area_covers_range_in_searched_row_with_beacon_on_the_r
     constexpr auto searched_row = 10;
     const auto result = get_range(sensor, searched_row);
     ASSERT_TRUE(result.has_value());
-    const Range expected{7, 12};
+    const Range expected{7, 13};
     EXPECT_EQ(result.value(), expected);
 }
 

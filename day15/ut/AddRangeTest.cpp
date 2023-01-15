@@ -101,11 +101,11 @@ TEST(AddRangeTest, New_range_starts_within_first_element_and_ends_within_next_el
 TEST(AddRangeTest, New_range_starts_after_first_element_and_ends_before_next_element)
 {
 	Ranges ranges{{2, 6}, {13, 17}};
-	Range new_range{7, 11};
+	Range new_range{9, 11};
     add_range(ranges, new_range);
     const Ranges expected{
         {2, 6},
-        {7, 11},
+        {9, 11},
         {13, 17},
     };
     EXPECT_EQ(ranges, expected);
@@ -181,6 +181,32 @@ TEST(AddRangeTest, New_range_overlaps_with_multiple_elements)
         {14, 19},
         {23, 48},
         {56, 60},
+    };
+    EXPECT_EQ(ranges, expected);
+}
+
+TEST(AddRangeTest, New_range_starts_touching_first_element_and_ends_before_next_element)
+{
+	Ranges ranges{{2, 5}, {12, 16}};
+	Range new_range{6, 10};
+    add_range(ranges, new_range);
+    const Ranges expected{
+        {2, 5},
+        {6, 10},
+        {12, 16},
+    };
+    EXPECT_EQ(ranges, expected);
+}
+
+TEST(AddRangeTest, New_range_starts_after_first_element_and_ends_touching_next_element)
+{
+	Ranges ranges{{2, 5}, {12, 16}};
+	Range new_range{8, 11};
+    add_range(ranges, new_range);
+    const Ranges expected{
+        {2, 5},
+        {8, 11},
+        {12, 16},
     };
     EXPECT_EQ(ranges, expected);
 }
