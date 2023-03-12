@@ -27,6 +27,28 @@ void print(std::ostream& stream, const T& data)
     stream << data;
 }
 
+template <typename T, typename U>
+void print(std::ostream&, const std::pair<T, U>&);
+
+template <typename T>
+concept Stringable = requires (T data)
+{
+    {data} -> std::convertible_to<std::string>;
+    typename T::iterator;
+};
+
+template <Stringable String>
+void print(std::ostream&, const String&);
+
+template <typename T>
+concept Iterable = requires
+{
+    typename T::iterator;
+};
+
+template <Iterable Container> requires (not Stringable<Container>)
+void print(std::ostream&, const Container&);
+
 template <>
 void print(std::ostream& stream, const char& c)
 {
@@ -43,41 +65,14 @@ void print(std::ostream& stream, const std::pair<T, U>& pair)
     stream << '}';
 }
 
-template <typename ContainedType>
-void print(std::ostream& stream, const std::stack<ContainedType>& stack)
-{
-	stream << "stack:{";
-	if (not stack.empty())
-	{
-        stream << "size = ";
-		print(stream, stack.size());
-		stream << ", top = ";
-		print(stream, stack.top());
-	}
-    stream << '}';
-}
-
-template <typename T>
-concept Stringable = requires (T data)
-{
-    {data} -> std::convertible_to<std::string>;
-    typename T::iterator;
-};
-
 template <Stringable String>
 void print(std::ostream& stream, const String& string)
 {
     stream << std::quoted(string);
 }
 
-template <typename T>
-concept Iterable = requires
-{
-    typename T::iterator;
-};
-
 template <Iterable Container> requires (not Stringable<Container>)
-static void print(std::ostream& stream, const Container& container)
+void print(std::ostream& stream, const Container& container)
 {
     stream << '[';
     if (not container.empty())
